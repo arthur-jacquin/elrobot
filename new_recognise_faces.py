@@ -89,6 +89,7 @@ while True:
 
             encodings = face_recognition.face_encodings(rgb)
 
+            name = 'Unknown'
             if len(encodings) > 0:
                 matches = face_recognition.compare_faces(data['encodings'],
                                                          encodings[0])
@@ -100,6 +101,6 @@ while True:
                         counts[name] = counts.get(name, 0) + 1
                     name = max(counts, key=counts.get)
 
-                z.put(args.prefix + f'/faces/{cam}/{face}/name', name)
+            z.put(args.prefix + f'/faces/{cam}/{face}/name', name)
 
     time.sleep(args.delay)
