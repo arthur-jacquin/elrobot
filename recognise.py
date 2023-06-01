@@ -130,9 +130,6 @@ def add_face_to_data(fdata, key, value):
     a = ast.literal_eval(value)
     fdata['encodings'].append(a)
 
-def normalise(value, center, thres):
-    return min(max((value - center)/thres, -1), 1)
-
 # callbacks
 
 def listener(sample: Sample):
@@ -214,23 +211,31 @@ while True:
 
             # z.put(args.prefix + f'/faces/{cam}/{face}/name', name)
 
+            nlin, nang = 0, 0
             if name == 'arthur':
-                nlin, nang = 1, 0
+                nlin = 1
             elif name == 'sacha':
-                nlin, nang = -1, 0
+                nlin = -1
             elif name == 'nicolas':
-                nlin, nang = 0, 1
+                nang = 1
             elif name == 'alejandra':
-                nlin, nang = 0, -1
+                nang = -1
             elif done != count:
                 done = count
-                print(position)
+                # print(position)
                 height = position['bottom'] - position['top']
-                middle = (position['left'] + position['right'])/2
-                nlin = normalise(height, 80, 10)
-                nang = normalise(middle, 250, 50)
-            else:
-                nlin, nang = 0, 0
+                off_axis = ((position['left'] + position['right']) >> 1) - 250
+
+                if off_axis > 75:
+                    nang = -1
+                elif off_axis < -75:
+                    nang = 1
+                elif height > 90:
+                    nlin = 1
+                elif height < 70:
+                    nlin = -1
+            
+                print(f'{height}\t{off_axis}\t{nlin}\t{nang}')
 
             pub_twist(nlin * args.linear_scale, nang * args.angular_scale)
 
