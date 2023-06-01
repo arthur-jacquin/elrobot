@@ -111,8 +111,6 @@ count = 0
 # robot
 cmd_vel = args.cmd_vel
 rosout = args.rosout
-angular_scale = args.angular_scale
-linear_scale = args.linear_scale
 
 
 # functions
@@ -132,6 +130,8 @@ def add_face_to_data(fdata, key, value):
     a = ast.literal_eval(value)
     fdata['encodings'].append(a)
 
+def normalise(value, center, thres):
+    return min(max((value - center)/thres, -1), 1)
 
 # callbacks
 
@@ -193,6 +193,7 @@ while True:
     for cam in list(cams):
         faces = cams[cam]
         for face in list(faces):
+            name = 'Unknown'
             if reco:
                 npImage = np.frombuffer(faces[face], dtype=np.uint8)
                 matImage = cv2.imdecode(npImage, 1)
@@ -200,7 +201,6 @@ while True:
 
                 encodings = face_recognition.face_encodings(rgb)
 
-                name = 'Unknown'
                 if len(encodings) > 0:
                     matches = face_recognition.compare_faces(data['encodings'],
                                                              encodings[0])
@@ -212,34 +212,27 @@ while True:
                             counts[name] = counts.get(name, 0) + 1
                         name = max(counts, key=counts.get)
 
-                to_follow = False
-                if name == 'martin':
-                    to_follow = True
-                elif name == 'arthur':
-                    pub_twist(1.0 * linear_scale, 0.0 * angular_scale)
-                elif name == 'sacha':
-                    pub_twist(-1.0 * linear_scale, 0.0 * angular_scale)
-                elif name == 'nicolas':
-                    pub_twist(0.0 * linear_scale, 1.0 * angular_scale)
-                elif name == 'alejandra':
-                    pub_twist(0.0 * linear_scale, -1.0 * angular_scale)
+            # z.put(args.prefix + f'/faces/{cam}/{face}/name', name)
 
-                # z.put(args.prefix + f'/faces/{cam}/{face}/name', name)
-
-            else:
-                to_follow = True
-            
-            if to_follow and done != count:
-                print(position)
-                size = position['bottom'] - position['top']
+            if name == 'arthur':
+                nlin, nang = 1, 0
+            elif name == 'sacha':
+                nlin, nang = -1, 0
+            elif name == 'nicolas':
+                nlin, nang = 0, 1
+            elif name == 'alejandra':
+                nlin, nang = 0, -1
+            elif done != count:
                 done = count
-                print(size)
-                if size > 90:
-                    pub_twist(1.0 * linear_scale, 0.0 * angular_scale)
-                elif size < 70:
-                    pub_twist(-1.0 * linear_scale, 0.0 * angular_scale)
-                else:
-                    pub_twist(0.0 * linear_scale, 0.0 * angular_scale)
+                print(position)
+                height = position['bottom'] - position['top']
+                middle = (position['left'] + position['right'])/2
+                nlin = normalise(height, 80, 10)
+                nang = normalise(middle, 250, 50)
+            else:
+                nlin, nang = 0, 0
+
+            pub_twist(nlin * args.linear_scale, nang * args.angular_scale)
 
     time.sleep(args.delay)
 
